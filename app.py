@@ -23,7 +23,7 @@ st.set_page_config(page_title="📊 YouTube Content Recommender", layout="wide")
 st.title("🎥 YouTube Content Recommender")
 
 
-genai.configure(api_key=)
+genai.configure(api_key="AIzaSyCdw8G_uGYKHDYDA3DTyyIXZewsAtz8hLo")
 
 # ✨ AI Content Generator
 def generate_ai_recommendations(topic, top_keywords, sentiment_counts):
