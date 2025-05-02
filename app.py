@@ -79,3 +79,44 @@ if st.button("🚀 Analyze"):
 
     st.markdown("---")
     st.caption("💡 Built using YouTube API, NLP, and Sentiment Analysis")
+
+# Set up Gemini API
+genai.configure(api_key=st.secrets["gemini"]["api_key"])
+
+    def generate_ai_recommendations(topic, top_keywords, sentiment_counts):
+            """
+            Calls Gemini API and returns AI-generated content strategy.
+            """
+            # Prepare enhanced prompt
+            prompt = f"""
+        You are a YouTube content strategist.
+        
+        A creator wants to make videos on the topic: "{topic}".
+        
+        Here is the data:
+        - Frequently mentioned keywords from viewer comments: {top_keywords}
+        - Audience sentiment analysis: {sentiment_counts}
+        
+        Based on this, please:
+        1. Suggest 5 viral video title ideas
+        2. Recommend an ideal video duration range (in minutes)
+        3. Provide 5 relevant hashtags
+        
+        Be creative but data-informed. Keep suggestions short and engaging.
+        """
+        
+            try:
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                return response.text.strip()
+            except Exception as e:
+                return f"❌ Error generating recommendations: {e}"
+
+# After keyword_counts, sentiment_counts are calculated...
+st.subheader("🧠 AI-Powered Content Strategy")
+
+ai_response = generate_ai_recommendations(topic, keyword_counts.most_common(5), sentiment_counts)
+st.markdown(ai_response)
+
+
+    
