@@ -108,10 +108,6 @@ if st.button("🚀 Analyze"):
     flat_keywords = [kw[0] for kw in keywords]
     keyword_counts = Counter(flat_keywords)
 
-    # Suggested titles
-    year = pd.Timestamp.now().year
-    title_ideas = [f"🔥 {kw.title()} Trends in {year}" for kw, _ in keyword_counts.most_common(5)]
-
     # Display analytics
     col1, col2 = st.columns(2)
     with col1:
@@ -119,14 +115,10 @@ if st.button("🚀 Analyze"):
         st.metric("👍 Positive", sentiment_counts["Positive"])
         st.metric("😐 Neutral", sentiment_counts["Neutral"])
         st.metric("👎 Negative", sentiment_counts["Negative"])
-
-    # Suggested Titles
-    st.subheader("🎯 Suggested Video Titles")
-    for title in title_ideas:
-        st.markdown(f"- {title}")
+    
 
     # AI-powered Recommendations
-    st.subheader("🧠 AI-Powered Content Strategy")
+    st.subheader("🧠 Suggested Video Title and content")
     ai_response = generate_ai_recommendations(
     topic, keyword_counts.most_common(5), sentiment_counts, top_tags
 )
