@@ -8,3 +8,4 @@ google-api-python-client
 isodate
 scikit-learn
 sentence-transformers
+google-generativeai
