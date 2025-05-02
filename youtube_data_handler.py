@@ -1,144 +1,208 @@
-# app.py
-import nltk
+# youtube_data_handler.py
+import os
+import re
+import time
 import pandas as pd
-import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
 import isodate
-from datetime import datetime
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import google.generativeai as genai
-from youtube_data_handler import fetch_all_data
-from nltk.sentiment import SentimentIntensityAnalyzer
-from keybert import KeyBERT
-from collections import Counter
+from functools import lru_cache
+from collections import defaultdict
 
-# Preload NLTK Data
-nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
+# Configuration
+YOUTUBE_API_SERVICE_NAME = "youtube"
+YOUTUBE_API_VERSION = "v3"
+YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"
 
-# Configure APIs
-genai.configure(api_key=st.secrets.google.gemini_api_key)
-YOUTUBE_API_KEY = st.secrets.google.youtube_api_key
+# Helper functions
+def extract_hashtags(description):
+    return re.findall(r"#\w+", description) if description else []
 
-# Configure Streamlit
-st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
-st.title("🎥 AI-Powered YouTube Content Optimizer")
+def extract_keywords(text):
+    text = re.sub(r"[^a-zA-Z\s]", "", str(text).lower())
+    return [word for word in text.split() if len(word) > 2][:10]  # Top 10 keywords
 
-# Helper Functions
 def parse_duration(duration):
     try:
-        return isodate.parse_duration(duration).total_seconds() / 60
+        return isodate.parse_duration(duration).total_seconds()
     except:
         return 0
 
-def calculate_engagement(row):
-    views = row['views'] if row['views'] > 0 else 1
-    return (2 * row['likes'] + row['comments']) / views
+@lru_cache(maxsize=100)
+def get_category_name(category_id):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+    request = youtube.videoCategories().list(part="snippet", id=category_id)
+    try:
+        response = request.execute()
+        return response['items'][0]['snippet']['title'] if response['items'] else "Unknown"
+    except HttpError:
+        return "Unknown"
 
-# AI Recommendation Generator
-def generate_ai_recommendations(topic, analysis_data):
-    prompt = f"""As a YouTube strategy expert, analyze this data and provide recommendations:
+# Core API handlers
+def fetch_videos_by_order(topic, order_type, max_results=50):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
     
-    Topic: {topic}
-    Performance Analysis:
-    - Average Duration of Top Videos: {analysis_data['avg_duration']:.1f} mins
-    - Best Posting Hours: {analysis_data['best_hours']}
-    - Top Keywords: {analysis_data['top_keywords']}
-    - Audience Sentiment: {analysis_data['sentiment']}
-    
-    Provide:
-    1. 5 viral title ideas
-    2. Ideal video length range
-    3. Best posting times
-    4. 3 content strategy tips
-    5. 5 recommended hashtags
-    
-    Keep recommendations data-driven and actionable."""
+    video_data = []
+    video_ids = []
+    page_token = None
     
     try:
-        model = genai.GenerativeModel("gemini-pro")
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"AI recommendation error: {str(e)}"
+        while len(video_data) < max_results:
+            request = youtube.search().list(
+                q=topic,
+                part="snippet",
+                maxResults=min(50, max_results - len(video_data)),
+                order=order_type,
+                type="video",
+                pageToken=page_token
+            )
+            response = request.execute()
+            
+            # Process current page
+            current_videos, current_ids = process_search_page(response, youtube)
+            video_data.extend(current_videos)
+            video_ids.extend(current_ids)
+            
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                break
+                
+            time.sleep(1)  # Rate limit protection
+            
+    except HttpError as e:
+        if e.resp.status == 403:
+            raise Exception("YouTube API quota exceeded. Please try again later.")
+        else:
+            raise
+            
+    return video_data[:max_results], video_ids[:max_results]
 
-# Main App
-def main():
-    st.sidebar.header("Settings")
-    topic = st.sidebar.text_input("Enter YouTube Topic", "Tech Reviews")
-    max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
+def process_search_page(response, youtube):
+    video_data = []
+    video_ids = []
+    
+    for item in response.get('items', []):
+        video_id = item['id']['videoId']
+        video_ids.append(video_id)
+        
+        # Get detailed video statistics
+        stats_request = youtube.videos().list(
+            part="statistics,contentDetails,snippet",
+            id=video_id
+        )
+        try:
+            stats_response = stats_request.execute()
+            if not stats_response['items']:
+                continue
+                
+            stats = stats_response['items'][0]
+            video_info = parse_video_stats(stats)
+            video_data.append(video_info)
+            
+        except HttpError as e:
+            continue
+            
+    return video_data, video_ids
 
-    if st.sidebar.button("🚀 Analyze"):
-        with st.spinner("Fetching and processing YouTube data..."):
-            try:
-                # Get data
-                video_df, comments_df = fetch_all_data(topic, max_results)
-                
-                # Preprocess data
-                video_df['duration_mins'] = video_df['duration'].apply(parse_duration)
-                video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
-                video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
-                
-                # Sentiment analysis
-                sia = SentimentIntensityAnalyzer()
-                comments_df['sentiment'] = comments_df['comment'].apply(
-                    lambda x: sia.polarity_scores(x)['compound']
-                )
-                
-                # Keyword extraction
-                kw_model = KeyBERT()
-                keywords = kw_model.extract_keywords(' '.join(comments_df['comment']), 
-                                   keyphrase_ngram_range=(1, 2), top_n=10)
-                
-                # Prepare analysis data
-                analysis_data = {
-                    'avg_duration': video_df.nlargest(10, 'engagement')['duration_mins'].median(),
-                    'best_hours': video_df.groupby('published_hour')['engagement'].idxmax().values[:3],
-                    'top_keywords': [kw[0] for kw in keywords],
-                    'sentiment': comments_df['sentiment'].mean()
-                }
-                
-                # Display results
-                st.success("✅ Analysis Complete!")
-                
-                # Visualization Section
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("📈 Performance Insights")
-                    fig, ax = plt.subplots()
-                    sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
-                    plt.xlabel("Duration (minutes)")
-                    plt.title("Video Duration Distribution")
-                    st.pyplot(fig)
+def parse_video_stats(stats):
+    snippet = stats.get('snippet', {})
+    statistics = stats.get('statistics', {})
+    content_details = stats.get('contentDetails', {})
+    
+    # Handle missing values
+    default_stats = {'viewCount': 0, 'likeCount': 0, 'commentCount': 0}
+    
+    return {
+        "title": snippet.get("title", "Untitled"),
+        "channel": snippet.get("channelTitle", "Unknown Channel"),
+        "published_at": snippet.get("publishedAt", ""),
+        "category": get_category_name(snippet.get('categoryId', '')),
+        "tags": snippet.get('tags', [])[:5],  # First 5 tags
+        "hashtags": extract_hashtags(snippet.get('description', '')),
+        "title_keywords": extract_keywords(snippet.get('title', '')),
+        "description_keywords": extract_keywords(snippet.get('description', '')),
+        "views": int(statistics.get('viewCount', 0)),
+        "likes": int(statistics.get('likeCount', 0)),
+        "comments": int(statistics.get('commentCount', 0)),
+        "duration": parse_duration(content_details.get('duration', 'PT0S')),
+        "video_url": f"https://www.youtube.com/watch?v={stats['id']}"
+    }
+
+def fetch_top_comments(video_ids, max_comments=100):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+    comments = []
+    
+    for video_id in video_ids:
+        if len(comments) >= max_comments:
+            break
+            
+        try:
+            comment_request = youtube.commentThreads().list(
+                part="snippet",
+                videoId=video_id,
+                order="relevance",
+                maxResults=min(20, max_comments - len(comments))
+            )
+            comment_response = comment_request.execute()
+            
+            for item in comment_response.get('items', []):
+                if 'topLevelComment' in item['snippet']:
+                    comment = item['snippet']['topLevelComment']['snippet']
+                    comments.append({
+                        "video_id": video_id,
+                        "comment": comment['textDisplay'],
+                        "likes": comment.get('likeCount', 0),
+                        "author": comment.get('authorDisplayName', 'Anonymous'),
+                        "published_at": comment.get('publishedAt', '')
+                    })
                     
-                with col2:
-                    fig, ax = plt.subplots()
-                    hour_engagement = video_df.groupby('published_hour')['engagement'].mean()
-                    sns.barplot(x=hour_engagement.index, y=hour_engagement.values, ax=ax)
-                    plt.title("Engagement by Posting Hour")
-                    plt.xlabel("Hour of Day")
-                    st.pyplot(fig)
+            time.sleep(0.5)  # Rate limit protection
+            
+        except HttpError as e:
+            if e.resp.status == 403:
+                continue  # Skip comments if disabled
+            else:
+                raise
                 
-                # AI Recommendations
-                st.subheader("🧠 AI-Powered Strategy Recommendations")
-                recommendations = generate_ai_recommendations(topic, analysis_data)
-                st.markdown(recommendations)
-                
-                # Reference Videos
-                st.subheader("🎬 Top Performing Reference Videos")
-                top_videos = video_df.nlargest(5, 'engagement')[['title', 'channel', 'duration_mins', 'engagement', 'video_url']]
-                st.dataframe(top_videos)
-                
-                # Raw Data
-                with st.expander("View Raw Data"):
-                    st.write("Video Data:", video_df)
-                    st.write("Comments Data:", comments_df)
-                    
-            except HttpError as e:
-                st.error(f"YouTube API Error: {str(e)}")
-            except Exception as e:
-                st.error(f"Analysis Failed: {str(e)}")
+    return comments[:max_comments]
 
-if __name__ == "__main__":
-    main()
+# Main data fetcher
+def fetch_all_data(topic, max_results=50):
+    categories = {
+        "recent": "date",
+        "most_viewed": "viewCount",
+        "trending": "relevance",
+        "most_liked": "rating"
+    }
+    
+    combined_video_data = []
+    categorized_comments = defaultdict(list)
+    
+    for category, order_type in categories.items():
+        try:
+            video_data, video_ids = fetch_videos_by_order(topic, order_type, max_results//4)
+            combined_video_data.extend(video_data)
+            categorized_comments[category] = fetch_top_comments(video_ids, max_comments=50)
+        except Exception as e:
+            print(f"Error fetching {category} videos: {str(e)}")
+            continue
+            
+    # Create DataFrames
+    video_df = pd.DataFrame(combined_video_data)
+    
+    # Process comments
+    comments_list = []
+    for cat, comments in categorized_comments.items():
+        for comment in comments:
+            comments_list.append({
+                "category": cat,
+                "video_id": comment["video_id"],
+                "comment": comment["comment"],
+                "likes": comment["likes"],
+                "author": comment["author"],
+                "published_at": comment["published_at"]
+            })
+            
+    comments_df = pd.DataFrame(comments_list)
+    
+    return video_df, comments_df
