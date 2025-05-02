@@ -3,6 +3,7 @@ from nltk.corpus import stopwords
 import pandas as pd
 from googleapiclient.discovery import build
 import re
+import time
 nltk.download('stopwords', quiet=True)
 
 YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"
@@ -23,7 +24,8 @@ def fetch_videos_by_order(topic, order_type):
         q=topic,
         part="snippet",
         maxResults=10,
-        order=order_type
+        order=order_type,
+        type="video"
     )
     response = request.execute()
 
@@ -31,8 +33,6 @@ def fetch_videos_by_order(topic, order_type):
     video_ids = []
 
     for item in response['items']:
-        if 'videoId' not in item['id']:
-            continue
         video_id = item['id']['videoId']
         video_ids.append(video_id)
 
@@ -72,19 +72,28 @@ def fetch_top_comments(video_ids):
                 part="snippet",
                 videoId=video_id,
                 order="relevance",
-                maxResults=10
+                maxResults=100
             )
             comment_response = comment_request.execute()
 
-            for item in comment_response['items']:
-                top_comment = item['snippet']['topLevelComment']['snippet']
-                comments.append({
-                    "video_id": video_id,
-                    "comment": top_comment['textDisplay'],
-                    "likes": top_comment['likeCount']
-                })
+            top_comments = sorted(
+                [
+                    {
+                        "video_id": video_id,
+                        "comment": item['snippet']['topLevelComment']['snippet']['textDisplay'],
+                        "likes": item['snippet']['topLevelComment']['snippet']['likeCount']
+                    }
+                    for item in comment_response.get('items', [])
+                ],
+                key=lambda x: x['likes'],
+                reverse=True
+            )[:10]  # take top 10 liked
+
+            comments.extend(top_comments)
         except Exception:
             continue
+
+        time.sleep(0.1)  # slight delay to avoid quota issues
 
     return comments
 
@@ -113,3 +122,6 @@ def fetch_all_data(topic):
     )
 
     return video_df, comments_df
+
+# Example call:
+# video_df, comments_df = fetch_all_data("Artificial Intelligence")
