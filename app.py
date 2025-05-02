@@ -1,9 +1,10 @@
 import nltk
+nltk.download('punkt', download_dir='/tmp')
+nltk.download('wordnet', download_dir='/tmp')
+nltk.download('stopwords', download_dir='/tmp')
+nltk.download('vader_lexicon', download_dir='/tmp')
+nltk.data.path.append('/tmp')
 
-nltk.download("vader_lexicon")
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
 
 # app.py
 import streamlit as st
