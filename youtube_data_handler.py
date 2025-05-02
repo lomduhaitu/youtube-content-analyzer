@@ -1,5 +1,6 @@
 # youtube_data_handler.py
 import pandas as pd
+import streamlit as st
 
 @st.cache_data
 def fetch_all_data(topic):
