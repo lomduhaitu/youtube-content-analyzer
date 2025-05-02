@@ -89,8 +89,9 @@ if st.button("🚀 Analyze"):
 
     # Keyword extraction
     kw_model = KeyBERT()
-    keywords = [kw_model.extract_keywords(c, keyphrase_ngram_range=(1, 2), stop_words='english') for c in clean_comments]
-    flat_keywords = [kw[0][0] for kw in keywords if kw]
+    full_text = " ".join(clean_comments)
+    keywords = kw_model.extract_keywords(full_text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=10)
+    flat_keywords = [kw[0] for kw in keywords]
     keyword_counts = Counter(flat_keywords)
 
     # Suggested titles
