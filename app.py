@@ -119,10 +119,6 @@ if st.button("🚀 Analyze"):
         st.metric("👍 Positive", sentiment_counts["Positive"])
         st.metric("😐 Neutral", sentiment_counts["Neutral"])
         st.metric("👎 Negative", sentiment_counts["Negative"])
-    with col2:
-        st.subheader("🔍 Top Keywords")
-        for word, count in keyword_counts.most_common(5):
-            st.markdown(f"- *{word}* ({count} mentions)")
 
     # Suggested Titles
     st.subheader("🎯 Suggested Video Titles")
