@@ -71,7 +71,7 @@ if st.button("🚀 Analyze"):
     st.success("✅ Data fetched and processed!")
     st.subheader("🎬 Retrieved Videos")
     st.dataframe(video_df[["title", "channel", "views", "likes", "duration", "video_url"]])
-    top_video = video_df.sort_values(by="views", ascending=True).iloc[0]
+    top_video = video_df.sort_values(by="views", ascending=False).iloc[0]
     st.markdown(f"🏆 **Top Video**: [{top_video['title']}]({top_video['video_url']})")
     st.markdown(f"🔢 Views: {top_video['views']} | 👍 Likes: {top_video['likes']}")
 
