@@ -39,7 +39,7 @@ def get_category_name(category_id):
         return "Unknown"
 
 # Core API handlers
-def fetch_videos_by_order(topic, order_type, max_results=50):
+def fetch_videos_by_order(topic, order_type, max_results=80):
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
     
     video_data = []
@@ -51,7 +51,7 @@ def fetch_videos_by_order(topic, order_type, max_results=50):
             request = youtube.search().list(
                 q=topic,
                 part="snippet",
-                maxResults=min(50, max_results - len(video_data)),
+                maxResults=min(80, max_results - len(video_data)),
                 order=order_type,
                 type="video",
                 pageToken=page_token
@@ -128,7 +128,7 @@ def parse_video_stats(stats):
         "video_url": f"https://www.youtube.com/watch?v={stats['id']}"
     }
 
-def fetch_top_comments(video_ids, max_comments=100):
+def fetch_top_comments(video_ids, max_comments=200):
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
     comments = []
     
@@ -167,7 +167,7 @@ def fetch_top_comments(video_ids, max_comments=100):
     return comments[:max_comments]
 
 # Main data fetcher
-def fetch_all_data(topic, max_results=50):
+def fetch_all_data(topic, max_results=80):
     categories = {
         "recent": "date",
         "most_viewed": "viewCount",
