@@ -9,7 +9,7 @@ from googleapiclient.discovery import build
 import re
 
 # Set up your YouTube API key and build the YouTube API client
-YOUTUBE_API_KEY = "YOUR_YOUTUBE_API_KEY"  # Add your API key here
+YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"  # Add your API key here
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
 
