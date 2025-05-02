@@ -22,11 +22,8 @@ from youtube_data_handler import fetch_all_data  # Your data loading function
 st.set_page_config(page_title="📊 YouTube Content Recommender", layout="wide")
 st.title("🎥 YouTube Content Recommender")
 
-if "gemini" in st.secrets and "api_key" in st.secrets["gemini"]:
-    api_key = st.secrets["gemini"]["api_key"]
-    genai.configure(api_key=api_key)
-else:
-    st.error("API key for Gemini is missing!")
+
+genai.configure(api_key=)
 
 # ✨ AI Content Generator
 def generate_ai_recommendations(topic, top_keywords, sentiment_counts):
