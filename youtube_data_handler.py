@@ -1,143 +1,208 @@
-import nltk
-from nltk.corpus import stopwords
-import pandas as pd
-import streamlit as st
-from googleapiclient.discovery import build
+# youtube_data_handler.py
+import os
 import re
+import time
+import pandas as pd
+import isodate
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from functools import lru_cache
+from collections import defaultdict
 
-# Ensure stopwords are available
-nltk.download('stopwords', quiet=True)
-
-# Set up your YouTube API key and build the YouTube API client
-YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"  # Add your API key here
+# Configuration
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
+YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"
 
-# Cache to avoid fetching data repeatedly
-@st.cache_data
-def fetch_all_data(topic):
-    # Fetch YouTube video metadata
-    video_df = fetch_video_metadata(topic)
-    
-    # Fetch YouTube comments
-    comments = fetch_comments(topic)
+# Helper functions
+def extract_hashtags(description):
+    return re.findall(r"#\w+", description) if description else []
 
-    return video_df, comments
+def extract_keywords(text):
+    text = re.sub(r"[^a-zA-Z\s]", "", str(text).lower())
+    return [word for word in text.split() if len(word) > 2][:10]  # Top 10 keywords
 
-def fetch_video_metadata(topic):
+def parse_duration(duration):
+    try:
+        return isodate.parse_duration(duration).total_seconds()
+    except:
+        return 0
+
+@lru_cache(maxsize=100)
+def get_category_name(category_id):
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+    request = youtube.videoCategories().list(part="snippet", id=category_id)
+    try:
+        response = request.execute()
+        return response['items'][0]['snippet']['title'] if response['items'] else "Unknown"
+    except HttpError:
+        return "Unknown"
 
-    # Searching for videos related to the topic
-    request = youtube.search().list(
-        q=topic,
-        part="snippet",
-        maxResults=10  # Adjust the number of results to fit your use case
-    )
-
-    response = request.execute()
+# Core API handlers
+def fetch_videos_by_order(topic, order_type, max_results=50):
+    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
+    
     video_data = []
+    video_ids = []
+    page_token = None
+    
+    try:
+        while len(video_data) < max_results:
+            request = youtube.search().list(
+                q=topic,
+                part="snippet",
+                maxResults=min(50, max_results - len(video_data)),
+                order=order_type,
+                type="video",
+                pageToken=page_token
+            )
+            response = request.execute()
+            
+            # Process current page
+            current_videos, current_ids = process_search_page(response, youtube)
+            video_data.extend(current_videos)
+            video_ids.extend(current_ids)
+            
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                break
+                
+            time.sleep(1)  # Rate limit protection
+            
+    except HttpError as e:
+        if e.resp.status == 403:
+            raise Exception("YouTube API quota exceeded. Please try again later.")
+        else:
+            raise
+            
+    return video_data[:max_results], video_ids[:max_results]
 
-    # Extracting metadata from the response
-    for item in response['items']:
-        # Check if 'videoId' is present in the response item
-        if 'videoId' not in item['id']:
-            continue  # Skip items that are not video results
-
+def process_search_page(response, youtube):
+    video_data = []
+    video_ids = []
+    
+    for item in response.get('items', []):
         video_id = item['id']['videoId']
+        video_ids.append(video_id)
         
-        # Fetching statistics for the video
+        # Get detailed video statistics
         stats_request = youtube.videos().list(
             part="statistics,contentDetails,snippet",
             id=video_id
         )
-        
-        stats_response = stats_request.execute()
-        stats = stats_response['items'][0]
-        
-        # Extracting additional details
-        category_name = stats['snippet'].get('categoryId', 'N/A')  # Category info
-        tags = stats['snippet'].get('tags', [])
-        hashtags = extract_hashtags(item['snippet']['description'])
-        
-        # Extracting keywords from title and description
-        title_keywords = extract_keywords(item['snippet']['title'])
-        description_keywords = extract_keywords(item['snippet']['description'])
+        try:
+            stats_response = stats_request.execute()
+            if not stats_response['items']:
+                continue
+                
+            stats = stats_response['items'][0]
+            video_info = parse_video_stats(stats)
+            video_data.append(video_info)
+            
+        except HttpError as e:
+            continue
+            
+    return video_data, video_ids
 
-        # Duration of the video
-        duration = stats['contentDetails']['duration']
-        
-        # Video URL
-        video_url = f"https://www.youtube.com/watch?v={video_id}"
+def parse_video_stats(stats):
+    snippet = stats.get('snippet', {})
+    statistics = stats.get('statistics', {})
+    content_details = stats.get('contentDetails', {})
+    
+    # Handle missing values
+    default_stats = {'viewCount': 0, 'likeCount': 0, 'commentCount': 0}
+    
+    return {
+        "title": snippet.get("title", "Untitled"),
+        "channel": snippet.get("channelTitle", "Unknown Channel"),
+        "published_at": snippet.get("publishedAt", ""),
+        "category": get_category_name(snippet.get('categoryId', '')),
+        "tags": snippet.get('tags', [])[:5],  # First 5 tags
+        "hashtags": extract_hashtags(snippet.get('description', '')),
+        "title_keywords": extract_keywords(snippet.get('title', '')),
+        "description_keywords": extract_keywords(snippet.get('description', '')),
+        "views": int(statistics.get('viewCount', 0)),
+        "likes": int(statistics.get('likeCount', 0)),
+        "comments": int(statistics.get('commentCount', 0)),
+        "duration": parse_duration(content_details.get('duration', 'PT0S')),
+        "video_url": f"https://www.youtube.com/watch?v={stats['id']}"
+    }
 
-        # Video metadata dictionary
-        video_info = {
-            "title": item["snippet"]["title"],
-            "channel": item["snippet"]["channelTitle"],
-            "published_at": item["snippet"]["publishedAt"],
-            "category": category_name,
-            "tags": tags,
-            "hashtags": hashtags,
-            "title_keywords": title_keywords,
-            "description_keywords": description_keywords,
-            "views": stats.get("statistics", {}).get("viewCount", "N/A"),
-            "likes": stats.get("statistics", {}).get("likeCount", "N/A"),
-            "comments": stats.get("statistics", {}).get("commentCount", "N/A"),
-            "duration": duration,
-            "video_url": video_url
-        }
-        video_data.append(video_info)
-
-    # Converting to a DataFrame
-    video_df = pd.DataFrame(video_data)
-
-    return video_df
-
-
-def fetch_comments(topic):
+def fetch_top_comments(video_ids, max_comments=100):
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
-
-    # Searching for videos related to the topic
-    request = youtube.search().list(
-        q=topic,
-        part="snippet",
-        maxResults=10  # Adjust the number of results to fit your use case
-    )
-
-    response = request.execute()
-    
     comments = []
-    for item in response['items']:
-        video_id = item['id']['videoId']
-        
-        # Fetching comments for each video
-        comment_request = youtube.commentThreads().list(
-            part="snippet",
-            videoId=video_id,
-            maxResults=20  # Adjust number of comments to fetch per video
-        )
-        
-        comment_response = comment_request.execute()
-        
-        for comment_item in comment_response['items']:
-            comment = comment_item['snippet']['topLevelComment']['snippet']['textDisplay']
-            comments.append(comment)
     
-    # Limit to 200 comments for speed
-    comments = comments[:200]
-    
-    return comments
+    for video_id in video_ids:
+        if len(comments) >= max_comments:
+            break
+            
+        try:
+            comment_request = youtube.commentThreads().list(
+                part="snippet",
+                videoId=video_id,
+                order="relevance",
+                maxResults=min(20, max_comments - len(comments))
+            )
+            comment_response = comment_request.execute()
+            
+            for item in comment_response.get('items', []):
+                if 'topLevelComment' in item['snippet']:
+                    comment = item['snippet']['topLevelComment']['snippet']
+                    comments.append({
+                        "video_id": video_id,
+                        "comment": comment['textDisplay'],
+                        "likes": comment.get('likeCount', 0),
+                        "author": comment.get('authorDisplayName', 'Anonymous'),
+                        "published_at": comment.get('publishedAt', '')
+                    })
+                    
+            time.sleep(0.5)  # Rate limit protection
+            
+        except HttpError as e:
+            if e.resp.status == 403:
+                continue  # Skip comments if disabled
+            else:
+                raise
+                
+    return comments[:max_comments]
 
-def extract_hashtags(description):
-    """ Extract hashtags from video description """
-    return re.findall(r"#\w+", description)
-
-def extract_keywords(text):
-    """ Simple function to extract keywords from text using NLTK stopwords """
-    # Get the NLTK stopwords list for English
-    stop_words = set(stopwords.words('english'))
+# Main data fetcher
+def fetch_all_data(topic, max_results=50):
+    categories = {
+        "recent": "date",
+        "most_viewed": "viewCount",
+        "trending": "relevance",
+        "most_liked": "rating"
+    }
     
-    # Tokenize the text and remove common stopwords
-    words = re.findall(r'\w+', text.lower())  # Simple word tokenization
-    keywords = [word for word in words if word not in stop_words]
+    combined_video_data = []
+    categorized_comments = defaultdict(list)
     
-    return keywords
+    for category, order_type in categories.items():
+        try:
+            video_data, video_ids = fetch_videos_by_order(topic, order_type, max_results//4)
+            combined_video_data.extend(video_data)
+            categorized_comments[category] = fetch_top_comments(video_ids, max_comments=50)
+        except Exception as e:
+            print(f"Error fetching {category} videos: {str(e)}")
+            continue
+            
+    # Create DataFrames
+    video_df = pd.DataFrame(combined_video_data)
+    
+    # Process comments
+    comments_list = []
+    for cat, comments in categorized_comments.items():
+        for comment in comments:
+            comments_list.append({
+                "category": cat,
+                "video_id": comment["video_id"],
+                "comment": comment["comment"],
+                "likes": comment["likes"],
+                "author": comment["author"],
+                "published_at": comment["published_at"]
+            })
+            
+    comments_df = pd.DataFrame(comments_list)
+    
+    return video_df, comments_df
