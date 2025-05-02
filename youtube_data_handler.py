@@ -1,129 +1,144 @@
+# app.py
 import nltk
-from nltk.corpus import stopwords
 import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
+import seaborn as sns
+import isodate
+from datetime import datetime
 from googleapiclient.discovery import build
-import re
-import time
-nltk.download('stopwords', quiet=True)
+from googleapiclient.errors import HttpError
+import google.generativeai as genai
+from youtube_data_handler import fetch_all_data
+from nltk.sentiment import SentimentIntensityAnalyzer
+from keybert import KeyBERT
+from collections import Counter
 
-YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"
-YOUTUBE_API_SERVICE_NAME = "youtube"
-YOUTUBE_API_VERSION = "v3"
+# Preload NLTK Data
+nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
-def extract_hashtags(description):
-    return re.findall(r"#\w+", description)
+# Configure APIs
+genai.configure(api_key=st.secrets.google.gemini_api_key)
+YOUTUBE_API_KEY = st.secrets.google.youtube_api_key
 
-def extract_keywords(text):
-    stop_words = set(stopwords.words('english'))
-    words = re.findall(r'\w+', text.lower())
-    return [word for word in words if word not in stop_words]
+# Configure Streamlit
+st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
+st.title("🎥 AI-Powered YouTube Content Optimizer")
 
-def fetch_videos_by_order(topic, order_type):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
-    request = youtube.search().list(
-        q=topic,
-        part="snippet",
-        maxResults=10,
-        order=order_type,
-        type="video"
-    )
-    response = request.execute()
+# Helper Functions
+def parse_duration(duration):
+    try:
+        return isodate.parse_duration(duration).total_seconds() / 60
+    except:
+        return 0
 
-    video_data = []
-    video_ids = []
+def calculate_engagement(row):
+    views = row['views'] if row['views'] > 0 else 1
+    return (2 * row['likes'] + row['comments']) / views
 
-    for item in response['items']:
-        video_id = item['id']['videoId']
-        video_ids.append(video_id)
+# AI Recommendation Generator
+def generate_ai_recommendations(topic, analysis_data):
+    prompt = f"""As a YouTube strategy expert, analyze this data and provide recommendations:
+    
+    Topic: {topic}
+    Performance Analysis:
+    - Average Duration of Top Videos: {analysis_data['avg_duration']:.1f} mins
+    - Best Posting Hours: {analysis_data['best_hours']}
+    - Top Keywords: {analysis_data['top_keywords']}
+    - Audience Sentiment: {analysis_data['sentiment']}
+    
+    Provide:
+    1. 5 viral title ideas
+    2. Ideal video length range
+    3. Best posting times
+    4. 3 content strategy tips
+    5. 5 recommended hashtags
+    
+    Keep recommendations data-driven and actionable."""
+    
+    try:
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"AI recommendation error: {str(e)}"
 
-        stats_request = youtube.videos().list(
-            part="statistics,contentDetails,snippet",
-            id=video_id
-        )
-        stats_response = stats_request.execute()
-        if not stats_response['items']:
-            continue
+# Main App
+def main():
+    st.sidebar.header("Settings")
+    topic = st.sidebar.text_input("Enter YouTube Topic", "Tech Reviews")
+    max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
 
-        stats = stats_response['items'][0]
+    if st.sidebar.button("🚀 Analyze"):
+        with st.spinner("Fetching and processing YouTube data..."):
+            try:
+                # Get data
+                video_df, comments_df = fetch_all_data(topic, max_results)
+                
+                # Preprocess data
+                video_df['duration_mins'] = video_df['duration'].apply(parse_duration)
+                video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
+                video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
+                
+                # Sentiment analysis
+                sia = SentimentIntensityAnalyzer()
+                comments_df['sentiment'] = comments_df['comment'].apply(
+                    lambda x: sia.polarity_scores(x)['compound']
+                )
+                
+                # Keyword extraction
+                kw_model = KeyBERT()
+                keywords = kw_model.extract_keywords(' '.join(comments_df['comment']), 
+                                   keyphrase_ngram_range=(1, 2), top_n=10)
+                
+                # Prepare analysis data
+                analysis_data = {
+                    'avg_duration': video_df.nlargest(10, 'engagement')['duration_mins'].median(),
+                    'best_hours': video_df.groupby('published_hour')['engagement'].idxmax().values[:3],
+                    'top_keywords': [kw[0] for kw in keywords],
+                    'sentiment': comments_df['sentiment'].mean()
+                }
+                
+                # Display results
+                st.success("✅ Analysis Complete!")
+                
+                # Visualization Section
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader("📈 Performance Insights")
+                    fig, ax = plt.subplots()
+                    sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
+                    plt.xlabel("Duration (minutes)")
+                    plt.title("Video Duration Distribution")
+                    st.pyplot(fig)
+                    
+                with col2:
+                    fig, ax = plt.subplots()
+                    hour_engagement = video_df.groupby('published_hour')['engagement'].mean()
+                    sns.barplot(x=hour_engagement.index, y=hour_engagement.values, ax=ax)
+                    plt.title("Engagement by Posting Hour")
+                    plt.xlabel("Hour of Day")
+                    st.pyplot(fig)
+                
+                # AI Recommendations
+                st.subheader("🧠 AI-Powered Strategy Recommendations")
+                recommendations = generate_ai_recommendations(topic, analysis_data)
+                st.markdown(recommendations)
+                
+                # Reference Videos
+                st.subheader("🎬 Top Performing Reference Videos")
+                top_videos = video_df.nlargest(5, 'engagement')[['title', 'channel', 'duration_mins', 'engagement', 'video_url']]
+                st.dataframe(top_videos)
+                
+                # Raw Data
+                with st.expander("View Raw Data"):
+                    st.write("Video Data:", video_df)
+                    st.write("Comments Data:", comments_df)
+                    
+            except HttpError as e:
+                st.error(f"YouTube API Error: {str(e)}")
+            except Exception as e:
+                st.error(f"Analysis Failed: {str(e)}")
 
-        video_info = {
-            "title": stats["snippet"].get("title", "N/A"),
-            "channel": stats["snippet"].get("channelTitle", "N/A"),
-            "published_at": stats["snippet"].get("publishedAt", "N/A"),
-            "category": stats['snippet'].get('categoryId', 'N/A'),
-            "tags": stats['snippet'].get('tags', []),
-            "hashtags": extract_hashtags(stats['snippet'].get('description', '')),
-            "title_keywords": extract_keywords(stats['snippet'].get('title', '')),
-            "description_keywords": extract_keywords(stats['snippet'].get('description', '')),
-            "views": stats.get("statistics", {}).get("viewCount", "N/A"),
-            "likes": stats.get("statistics", {}).get("likeCount", "N/A"),
-            "comments": stats.get("statistics", {}).get("commentCount", "N/A"),
-            "duration": stats['contentDetails'].get('duration', 'N/A'),
-            "video_url": f"https://www.youtube.com/watch?v={video_id}"
-        }
-        video_data.append(video_info)
-
-    return video_data, video_ids
-
-def fetch_top_comments(video_ids):
-    youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
-    comments = []
-
-    for video_id in video_ids:
-        try:
-            comment_request = youtube.commentThreads().list(
-                part="snippet",
-                videoId=video_id,
-                order="relevance",
-                maxResults=20
-            )
-            comment_response = comment_request.execute()
-
-            top_comments = sorted(
-                [
-                    {
-                        "video_id": video_id,
-                        "comment": item['snippet']['topLevelComment']['snippet']['textDisplay'],
-                        "likes": item['snippet']['topLevelComment']['snippet']['likeCount']
-                    }
-                    for item in comment_response.get('items', [])
-                    if 'topLevelComment' in item['snippet']
-                ],
-                key=lambda x: x['likes'],
-                reverse=True
-            )[:10]  # Take top 10 liked
-
-            comments.extend(top_comments)
-        except Exception:
-            continue
-
-        time.sleep(0.1)
-
-    return comments
-
-def fetch_all_data(topic):
-    categories = {
-        "recent": "date",
-        "most_viewed": "viewCount",
-        "trending": "relevance",
-        "most_liked": "rating"
-    }
-
-    combined_video_data = []
-    categorized_comments = {}
-
-    for category, order_type in categories.items():
-        video_data, video_ids = fetch_videos_by_order(topic, order_type)
-        combined_video_data.extend(video_data)
-        categorized_comments[category] = fetch_top_comments(video_ids)
-
-    video_df = pd.DataFrame(combined_video_data)
-    comments_df = pd.DataFrame(
-        [(cat, com['video_id'], com['comment'], com['likes']) for cat, com_list in categorized_comments.items() for com in com_list],
-        columns=["category", "video_id", "comment", "likes"]
-    )
-
-    return video_df, comments_df
-
-# Example call:
-# video_df, comments_df = fetch_all_data("Artificial Intelligence")
+if __name__ == "__main__":
+    main()
