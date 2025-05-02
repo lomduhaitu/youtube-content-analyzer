@@ -33,7 +33,7 @@ if st.button("🚀 Analyze"):
     def preprocess_comment(comment):
         comment = re.sub(r"http\S+", "", comment)
         comment = re.sub(r"[^a-zA-Z\s]", "", comment)
-        words = word_tokenize(comment.lower())
+        words = comment.lower().split()
         words = [w for w in words if w not in stopwords.words("english")]
         lemmatizer = WordNetLemmatizer()
         words = [lemmatizer.lemmatize(w) for w in words]
