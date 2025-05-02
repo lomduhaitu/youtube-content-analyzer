@@ -41,12 +41,15 @@ def fetch_videos_by_order(topic, order_type):
             id=video_id
         )
         stats_response = stats_request.execute()
+        if not stats_response['items']:
+            continue
+
         stats = stats_response['items'][0]
 
         video_info = {
-            "title": stats["snippet"]["title"],
-            "channel": stats["snippet"]["channelTitle"],
-            "published_at": stats["snippet"]["publishedAt"],
+            "title": stats["snippet"].get("title", "N/A"),
+            "channel": stats["snippet"].get("channelTitle", "N/A"),
+            "published_at": stats["snippet"].get("publishedAt", "N/A"),
             "category": stats['snippet'].get('categoryId', 'N/A'),
             "tags": stats['snippet'].get('tags', []),
             "hashtags": extract_hashtags(stats['snippet'].get('description', '')),
@@ -55,7 +58,7 @@ def fetch_videos_by_order(topic, order_type):
             "views": stats.get("statistics", {}).get("viewCount", "N/A"),
             "likes": stats.get("statistics", {}).get("likeCount", "N/A"),
             "comments": stats.get("statistics", {}).get("commentCount", "N/A"),
-            "duration": stats['contentDetails']['duration'],
+            "duration": stats['contentDetails'].get('duration', 'N/A'),
             "video_url": f"https://www.youtube.com/watch?v={video_id}"
         }
         video_data.append(video_info)
@@ -72,7 +75,7 @@ def fetch_top_comments(video_ids):
                 part="snippet",
                 videoId=video_id,
                 order="relevance",
-                maxResults=100
+                maxResults=20
             )
             comment_response = comment_request.execute()
 
@@ -84,16 +87,17 @@ def fetch_top_comments(video_ids):
                         "likes": item['snippet']['topLevelComment']['snippet']['likeCount']
                     }
                     for item in comment_response.get('items', [])
+                    if 'topLevelComment' in item['snippet']
                 ],
                 key=lambda x: x['likes'],
                 reverse=True
-            )[:10]  # take top 10 liked
+            )[:10]  # Take top 10 liked
 
             comments.extend(top_comments)
         except Exception:
             continue
 
-        time.sleep(0.1)  # slight delay to avoid quota issues
+        time.sleep(0.1)
 
     return comments
 
@@ -106,13 +110,11 @@ def fetch_all_data(topic):
     }
 
     combined_video_data = []
-    combined_video_ids = []
     categorized_comments = {}
 
     for category, order_type in categories.items():
         video_data, video_ids = fetch_videos_by_order(topic, order_type)
         combined_video_data.extend(video_data)
-        combined_video_ids.extend(video_ids)
         categorized_comments[category] = fetch_top_comments(video_ids)
 
     video_df = pd.DataFrame(combined_video_data)
