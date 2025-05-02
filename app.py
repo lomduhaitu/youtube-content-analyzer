@@ -76,7 +76,7 @@ def main():
                 video_df, comments_df = fetch_all_data(topic, max_results)
                 
                 # Preprocess data
-                video_df['duration_mins'] = video_df['duration'].apply(parse_duration)
+                video_df['duration_mins'] = video_df['duration'] / 60
                 video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
                 video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
                 
