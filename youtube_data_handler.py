@@ -1,12 +1,12 @@
-# youtube_data_handler.py
-
 import nltk
-nltk.download("stopwords")
-
+from nltk.corpus import stopwords
 import pandas as pd
 import streamlit as st
 from googleapiclient.discovery import build
 import re
+
+# Ensure stopwords are available
+nltk.download('stopwords', quiet=True)
 
 # Set up your YouTube API key and build the YouTube API client
 YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"  # Add your API key here
