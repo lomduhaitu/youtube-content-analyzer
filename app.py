@@ -1,3 +1,8 @@
+nltk.download("vader_lexicon")
+nltk.download("punkt")
+nltk.download("stopwords")
+nltk.download("wordnet")
+
 # app.py
 import streamlit as st
 import pandas as pd
@@ -10,11 +15,6 @@ from keybert import KeyBERT
 from collections import Counter
 import nltk
 from youtube_data_handler import fetch_all_data
-
-nltk.download("vader_lexicon")
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
 
 st.set_page_config(page_title="📊 YouTube Content Recommender", layout="wide")
 st.title("🎥 YouTube Content Recommender")
