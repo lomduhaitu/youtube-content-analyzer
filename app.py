@@ -71,7 +71,9 @@ if st.button("🚀 Analyze"):
     st.success("✅ Data fetched and processed!")
 
     # Preprocess comments
-    clean_comments = [preprocess_comment(c) for c in comments]
+    # Preprocess comments
+    clean_comments = [preprocess_comment(c) for c in comments["comment"]]
+
 
     # Sentiment analysis
     sia = SentimentIntensityAnalyzer()
