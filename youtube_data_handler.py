@@ -189,6 +189,23 @@ def fetch_all_data(topic, max_results=80):
             
     # Create DataFrames
     video_df = pd.DataFrame(combined_video_data)
+
+    # With this:
+    expected_columns = [
+        "title", "channel", "published_at", "category", "tags", 
+        "hashtags", "title_keywords", "description_keywords",
+        "views", "likes", "comments", "duration", "video_url"
+    ]
+
+    if combined_video_data:
+        video_df = pd.DataFrame(combined_video_data)
+        # Ensure all expected columns exist
+        for col in expected_columns:
+            if col not in video_df.columns:
+                video_df[col] = None
+    else:
+    # Create empty dataframe with expected structure
+        video_df = pd.DataFrame(columns=expected_columns)
     
     # Process comments
     comments_list = []
