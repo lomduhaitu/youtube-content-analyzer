@@ -25,15 +25,6 @@ st.title("🎥 YouTube Content Recommender")
 
 genai.configure(api_key="AIzaSyCdw8G_uGYKHDYDA3DTyyIXZewsAtz8hLo")
 
-# Extract top video tags
-all_tags = []
-for tags in video_df['tags']:
-    if isinstance(tags, list):
-        all_tags.extend(tags)
-
-tag_counts = Counter([tag.lower() for tag in all_tags if isinstance(tag, str)])
-top_tags = [f"#{tag}" for tag, _ in tag_counts.most_common(5)]
-
 # Update AI Prompt
 def generate_ai_recommendations(topic, top_keywords, sentiment_counts, top_tags):
     prompt = f"""
@@ -71,7 +62,7 @@ def preprocess_comment(comment):
     return " ".join(words)
 
 # Topic input
-topic = st.text_input("Enter a YouTube topic:", value="machine learning")
+topic = st.text_input("Enter a YouTube topic:", value="Please enter your topic")
 
 # Main app logic
 if st.button("🚀 Analyze"):
@@ -79,6 +70,14 @@ if st.button("🚀 Analyze"):
         video_df, comments = fetch_all_data(topic)
 
     st.success("✅ Data fetched and processed!")
+    all_tags = []
+    for tags in video_df['tags']:
+        if isinstance(tags, list):
+            all_tags.extend(tags)
+
+    tag_counts = Counter([tag.lower() for tag in all_tags if isinstance(tag, str)])
+    top_tags = [f"#{tag}" for tag, _ in tag_counts.most_common(5)]
+    
     st.subheader("🎬 Retrieved Videos")
     st.dataframe(video_df[["title", "channel", "views", "likes", "duration", "video_url"]])
 
