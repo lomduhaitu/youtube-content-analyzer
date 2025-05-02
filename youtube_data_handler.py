@@ -39,6 +39,10 @@ def fetch_video_metadata(topic):
 
     # Extracting metadata from the response
     for item in response['items']:
+        # Check if 'videoId' is present in the response item
+        if 'videoId' not in item['id']:
+            continue  # Skip items that are not video results
+
         video_id = item['id']['videoId']
         
         # Fetching statistics for the video
@@ -87,6 +91,7 @@ def fetch_video_metadata(topic):
     video_df = pd.DataFrame(video_data)
 
     return video_df
+
 
 def fetch_comments(topic):
     youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=YOUTUBE_API_KEY)
