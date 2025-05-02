@@ -25,8 +25,17 @@ st.title("🎥 YouTube Content Recommender")
 
 genai.configure(api_key="AIzaSyCdw8G_uGYKHDYDA3DTyyIXZewsAtz8hLo")
 
-# ✨ AI Content Generator
-def generate_ai_recommendations(topic, top_keywords, sentiment_counts):
+# Extract top video tags
+all_tags = []
+for tags in video_df['tags']:
+    if isinstance(tags, list):
+        all_tags.extend(tags)
+
+tag_counts = Counter([tag.lower() for tag in all_tags if isinstance(tag, str)])
+top_tags = [f"#{tag}" for tag, _ in tag_counts.most_common(5)]
+
+# Update AI Prompt
+def generate_ai_recommendations(topic, top_keywords, sentiment_counts, top_tags):
     prompt = f"""
 You are a YouTube content strategist.
 
@@ -35,6 +44,7 @@ A creator wants to make videos on the topic: "{topic}".
 Here is the data:
 - Frequently mentioned keywords from viewer comments: {top_keywords}
 - Audience sentiment analysis: {sentiment_counts}
+- Common tags from popular videos on the same topic: {top_tags}
 
 Based on this, please:
 1. Suggest 5 viral video title ideas
@@ -71,9 +81,7 @@ if st.button("🚀 Analyze"):
     st.success("✅ Data fetched and processed!")
     st.subheader("🎬 Retrieved Videos")
     st.dataframe(video_df[["title", "channel", "views", "likes", "duration", "video_url"]])
-    top_video = video_df.sort_values(by="views", ascending=False).iloc[0]
-    st.markdown(f"🏆 **Top Video**: [{top_video['title']}]({top_video['video_url']})")
-    st.markdown(f"🔢 Views: {top_video['views']} | 👍 Likes: {top_video['likes']}")
+
 
     # Preprocess comments
     # Preprocess comments
@@ -124,8 +132,10 @@ if st.button("🚀 Analyze"):
 
     # AI-powered Recommendations
     st.subheader("🧠 AI-Powered Content Strategy")
-    ai_response = generate_ai_recommendations(topic, keyword_counts.most_common(5), sentiment_counts)
-    st.markdown(ai_response)
+    ai_response = generate_ai_recommendations(
+    topic, keyword_counts.most_common(5), sentiment_counts, top_tags
+)
+    st.markdown(LLM_Response)
 
     st.markdown("---")
     st.caption("💡 Built using YouTube API, Gemini LLM, NLP and KeyBERT")
