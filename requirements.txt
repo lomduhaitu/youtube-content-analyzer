@@ -1,0 +1,10 @@
+streamlit
+nltk
+keybert
+pandas
+tqdm
+matplotlib
+google-api-python-client
+isodate
+scikit-learn
+sentence-transformers
