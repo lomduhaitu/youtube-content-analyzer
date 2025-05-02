@@ -134,7 +134,7 @@ if st.button("🚀 Analyze"):
     ai_response = generate_ai_recommendations(
     topic, keyword_counts.most_common(5), sentiment_counts, top_tags
 )
-    st.markdown(LLM_Response)
+    st.markdown(ai_response)
 
     st.markdown("---")
     st.caption("💡 Built using YouTube API, Gemini LLM, NLP and KeyBERT")
