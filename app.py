@@ -74,7 +74,12 @@ def main():
             try:
                 # Get data
                 video_df, comments_df = fetch_all_data(topic, max_results)
-                
+
+                # In app.py's processing section:
+                if 'duration' not in video_df.columns:
+                    video_df['duration'] = 0
+
+                video_df['duration_mins'] = video_df['duration'].astype(float) / 60
                 # Preprocess data
                 video_df['duration_mins'] = video_df['duration'] / 60
                 video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
