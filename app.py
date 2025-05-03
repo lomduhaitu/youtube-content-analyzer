@@ -74,33 +74,30 @@ def display_analysis(video_df, comments_df, analysis_data, topic, recommendation
     # Key Metrics
     col1, col2, col3, col4 = st.columns(4)
     # Replace the problematic card component with this corrected version
+   # Replace the card section with this
     with col1:
-        card(
-            title="🔥 Engagement Score",
-            text=f"{video_df['engagement'].mean():.2f}",
-            content=(
-                "Higher is better<br>"
-                f"({len(video_df)} videos analyzed)"
-            ),
-            styles={
-                "card": {
-                    "background": "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
-                    "box-shadow": "0 4px 8px rgba(0,0,0,0.1)",
-                    "border-radius": "10px",
-                    "padding": "1rem"
-                },
-                "title": {
-                    "color": "white",
-                    "font-size": "1.2rem"
-                },
-                "text": {
-                    "font-size": "2rem",
-                    "color": "white"
-                }
-                
-            }
-        )
-    
+        with st.container():
+            st.markdown(
+                f"""
+                <div style="
+                    background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+                    border-radius: 10px;
+                    padding: 1.5rem;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    color: white;
+                ">
+                <h3 style="margin:0;padding:0;">🔥 Engagement Score</h3>
+                <div style="font-size: 2.5rem; font-weight: bold; margin: 1rem 0;">
+                    {video_df['engagement'].mean():.2f}
+                </div>
+                <div style="font-size: 0.9rem;">
+                    Higher is better ({len(video_df)} videos analyzed)
+                </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        
     metric_cols = [col2, col3, col4]
     metrics = [
         ("⏳ Optimal Duration", f"{analysis_data['avg_duration']:.1f} mins", "Median of top videos"),
