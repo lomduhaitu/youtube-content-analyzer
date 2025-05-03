@@ -11,7 +11,7 @@ from collections import defaultdict
 # Configuration
 YOUTUBE_API_SERVICE_NAME = "youtube"
 YOUTUBE_API_VERSION = "v3"
-YOUTUBE_API_KEY = "AIzaSyDYXAlo8fSiynRZil2fek_vJRvOCjrHJPA"
+YOUTUBE_API_KEY = "AIzaSyCOkNuiefVbn67dbr1VTOqYp7e4ETaF2a4"
 
 # Helper functions
 def extract_hashtags(description):
