@@ -25,11 +25,11 @@ YOUTUBE_API_KEY = "AIzaSyB-ZRiUSq9GEfj9eJ0TIDDLa8YMCqVW0R0"
 st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
 st.title("🎥 AI-Powered YouTube Content Optimizer")
 
-# Helper Functions
 def parse_duration(duration):
     try:
         return isodate.parse_duration(duration).total_seconds() / 60
-    except:
+    except Exception as e:
+        print(f"Failed to parse duration: {duration} → {e}")
         return 0
 
 def calculate_engagement(row):
@@ -77,6 +77,8 @@ def main():
                 
                 # Preprocess data
                 video_df['duration_mins'] = video_df['duration'].apply(parse_duration)
+                video_df = video_df[video_df['duration_mins'] > 0]  # Filter out bad data
+
                 video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
                 video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
                 
