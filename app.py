@@ -18,7 +18,7 @@ from collections import Counter
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
 # Configure APIs
-genai.configure(api_key=st.secrets.google.gemini_api_key)
+genai.configure(api_key= "AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")
 YOUTUBE_API_KEY = "AIzaSyB-ZRiUSq9GEfj9eJ0TIDDLa8YMCqVW0R0"
 
 # Configure Streamlit
