@@ -173,7 +173,7 @@ def fetch_top_comments(video_ids, max_comments=100):
     return comments[:max_comments]
 
 # Main fetcher with progress indicators
-def fetch_all_data(topic, max_results=50):
+def fetch_all_data(topic, max_results=100):
     categories = {
         "recent": "date",
         "most_viewed": "viewCount",
