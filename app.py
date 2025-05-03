@@ -42,7 +42,7 @@ def generate_ai_recommendations(topic, analysis_data):
     
     Topic: {topic}
     Performance Analysis:
-    - Average Duration of Top Videos: {analysis_data['avg_duration']:.1f} mins
+    - Average Duration of Top Videos: {video_df['duration']:.1f} mins
     - Best Posting Hours: {analysis_data['best_hours']}
     - Top Keywords: {analysis_data['top_keywords']}
     - Audience Sentiment: {analysis_data['sentiment']}
@@ -52,7 +52,7 @@ def generate_ai_recommendations(topic, analysis_data):
     2. Ideal video length range
     3. Best posting times
     4. 3 content strategy tips
-    5. 5 recommended hashtags
+    5. 10 recommended hashtags
     
     Keep recommendations data-driven and actionable."""
     
@@ -66,7 +66,7 @@ def generate_ai_recommendations(topic, analysis_data):
 # Main App
 def main():
     st.sidebar.header("Settings")
-    topic = st.sidebar.text_input("Enter YouTube Topic", "Tech Reviews")
+    topic = st.sidebar.text_input("Enter YouTube Topic", "Example - Deep Learning")
     max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
 
     if st.sidebar.button("🚀 Analyze"):
@@ -109,8 +109,8 @@ def main():
                 with col1:
                     st.subheader("📈 Performance Insights")
                     fig, ax = plt.subplots()
-                    sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
-                    plt.xlabel("Duration (minutes)")
+                    sns.histplot(video_df['duration'], bins=15, kde=True, ax=ax)
+                    plt.xlabel("Duration (seconds)")
                     plt.title("Video Duration Distribution")
                     st.pyplot(fig)
                     
