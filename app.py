@@ -25,12 +25,8 @@ YOUTUBE_API_KEY = "AIzaSyB-ZRiUSq9GEfj9eJ0TIDDLa8YMCqVW0R0"
 st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
 st.title("🎥 AI-Powered YouTube Content Optimizer")
 
-def parse_duration(duration):
-    try:
-        return isodate.parse_duration(duration).total_seconds() / 60
-    except Exception as e:
-        print(f"Failed to parse duration: {duration} → {e}")
-        return 0
+def seconds_to_minutes(seconds):
+    return seconds / 60 if seconds > 0 else 0
 
 def calculate_engagement(row):
     views = row['views'] if row['views'] > 0 else 1
@@ -42,7 +38,7 @@ def generate_ai_recommendations(topic, analysis_data):
     
     Topic: {topic}
     Performance Analysis:
-    - Average Duration of Top Videos: {video_df['duration']:.1f} mins
+    - Average Duration of Top Videos: {analysis_data['avg_duration']:.1f} mins
     - Best Posting Hours: {analysis_data['best_hours']}
     - Top Keywords: {analysis_data['top_keywords']}
     - Audience Sentiment: {analysis_data['sentiment']}
@@ -76,12 +72,13 @@ def main():
                 video_df, comments_df = fetch_all_data(topic, max_results)
                 
                 # Preprocess data
-                video_df['duration_mins'] = video_df['duration'].apply(parse_duration)
+                video_df['duration_mins'] = video_df['duration'].apply(seconds_to_minutes)
                 video_df = video_df[video_df['duration_mins'] > 0]  # Filter out bad data
 
                 video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
                 video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
                 
+                st.write(f"Analyzing {len(comments_df)} comments from {len(comments_df['video_id'].unique())} videos")
                 # Sentiment analysis
                 sia = SentimentIntensityAnalyzer()
                 comments_df['sentiment'] = comments_df['comment'].apply(
@@ -91,12 +88,12 @@ def main():
                 # Keyword extraction
                 kw_model = KeyBERT()
                 keywords = kw_model.extract_keywords(' '.join(comments_df['comment']), 
-                                   keyphrase_ngram_range=(1, 2), top_n=10)
+                                   keyphrase_ngram_range=(1, 2), top_n=20)
                 
                 # Prepare analysis data
                 analysis_data = {
                     'avg_duration': video_df.nlargest(10, 'engagement')['duration_mins'].median(),
-                    'best_hours': video_df.groupby('published_hour')['engagement'].idxmax().values[:3],
+                    'best_hours': video_df.groupby('published_hour')['engagement'].mean().nlargest(3).index.tolist(),
                     'top_keywords': [kw[0] for kw in keywords],
                     'sentiment': comments_df['sentiment'].mean()
                 }
@@ -109,7 +106,7 @@ def main():
                 with col1:
                     st.subheader("📈 Performance Insights")
                     fig, ax = plt.subplots()
-                    sns.histplot(video_df['duration'], bins=15, kde=True, ax=ax)
+                    sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
                     plt.xlabel("Duration (seconds)")
                     plt.title("Video Duration Distribution")
                     st.pyplot(fig)
