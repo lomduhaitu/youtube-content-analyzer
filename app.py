@@ -14,7 +14,7 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 from keybert import KeyBERT
 from collections import Counter
 
-# Preload NLTK Data
+# Preload NLTK Dat
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
 # Configure APIs
