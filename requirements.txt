@@ -10,3 +10,5 @@ scikit-learn
 sentence-transformers
 google-generativeai
 seaborn==0.13.2
+plotly
+streamlit-extras
