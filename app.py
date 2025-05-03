@@ -78,7 +78,6 @@ def display_analysis(video_df, comments_df, analysis_data, topic, recommendation
         card(
             title="🔥 Engagement Score",
             text=f"{video_df['engagement'].mean():.2f}",
-            text_size="large",
             content=(
                 "Higher is better<br>"
                 f"({len(video_df)} videos analyzed)"
@@ -87,11 +86,18 @@ def display_analysis(video_df, comments_df, analysis_data, topic, recommendation
                 "card": {
                     "background": "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
                     "box-shadow": "0 4px 8px rgba(0,0,0,0.1)",
-                    "border-radius": "10px"
+                    "border-radius": "10px",
+                    "padding": "1rem"
                 },
                 "title": {
+                    "color": "white",
+                    "font-size": "1.2rem"
+                },
+                "text": {
+                    "font-size": "2rem",
                     "color": "white"
                 }
+                
             }
         )
     
