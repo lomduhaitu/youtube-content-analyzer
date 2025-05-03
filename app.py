@@ -16,7 +16,7 @@ from keybert import KeyBERT
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
 genai.configure(api_key= "AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")
-YOUTUBE_API_KEY = "AIzaSyDYXAlo8fSiynRZil2fek_vJRvOCjrHJPA"
+YOUTUBE_API_KEY = "AIzaSyCOkNuiefVbn67dbr1VTOqYp7e4ETaF2a4"
 
 # Configure Streamlit
 st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
