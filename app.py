@@ -73,11 +73,27 @@ def display_analysis(video_df, comments_df, analysis_data, topic, recommendation
     
     # Key Metrics
     col1, col2, col3, col4 = st.columns(4)
+    # Replace the problematic card component with this corrected version
     with col1:
-        card(title="🔥 Engagement Score", 
-            content=f"{video_df['engagement'].mean():.2f}",
-            description="Higher is better",
-            styles={"card": {"background": "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)"}})
+        card(
+            title="🔥 Engagement Score",
+            text=f"{video_df['engagement'].mean():.2f}",
+            text_size="large",
+            content=(
+                "Higher is better<br>"
+                f"({len(video_df)} videos analyzed)"
+            ),
+            styles={
+                "card": {
+                    "background": "linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)",
+                    "box-shadow": "0 4px 8px rgba(0,0,0,0.1)",
+                    "border-radius": "10px"
+                },
+                "title": {
+                    "color": "white"
+                }
+            }
+        )
     
     metric_cols = [col2, col3, col4]
     metrics = [
