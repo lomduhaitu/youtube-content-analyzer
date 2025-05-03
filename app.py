@@ -84,8 +84,7 @@ if st.button("🚀 Analyze"):
 
     # Preprocess comments
     # Preprocess comments
-    clean_comments = [preprocess_comment(c) for c in comments["comment"]]
-
+    clean_comments = [preprocess_comment(c) for c in comments]
 
     # Sentiment analysis
     sia = SentimentIntensityAnalyzer()
