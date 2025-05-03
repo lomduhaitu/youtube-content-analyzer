@@ -57,7 +57,7 @@ def generate_ai_recommendations(topic, analysis_data):
     Keep recommendations data-driven and actionable."""
     
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
