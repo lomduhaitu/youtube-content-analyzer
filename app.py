@@ -50,7 +50,7 @@ def generate_ai_recommendations(topic, analysis_data):
     4. 3 content strategy tips
     5. 10 recommended hashtags
     
-    Keep recommendations data-driven and actionable."""
+    Keep recommendations data-driven and actionable and content must be in english."""
     
     try:
         model = genai.GenerativeModel("gemini-1.5-flash")
