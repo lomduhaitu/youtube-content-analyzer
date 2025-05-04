@@ -19,11 +19,11 @@ nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
 # Configure APIs
 genai.configure(api_key= "AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")
-YOUTUBE_API_KEY = "AIzaSyCOkNuiefVbn67dbr1VTOqYp7e4ETaF2a4"
+YOUTUBE_API_KEY = "AIzaSyB-ZRiUSq9GEfj9eJ0TIDDLa8YMCqVW0R0"
 
 # Configure Streamlit
 st.set_page_config(page_title="📊 YouTube Content Strategist", layout="wide")
-st.title("🎥 AI-Powered YouTube Content Optimizer")
+st.title("🎥 YT Brain: The AI Toolkit for YouTube Success")
 
 def seconds_to_minutes(seconds):
     return seconds / 60 if seconds > 0 else 0
