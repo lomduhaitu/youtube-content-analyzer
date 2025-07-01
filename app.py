@@ -15,6 +15,9 @@ from keybert import KeyBERT
 from collections import Counter
 import google.generativeai as genai
 from datetime import datetime
+from PIL import Image
+import io
+import base64
 
 # Preload NLTK Dat
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
@@ -119,6 +122,95 @@ def content_creator_chatbot():
                 st.sidebar.error(f"Error: {str(e)}")
 
 
+def thumbnail_idea_generator():
+    st.header("🎨 Thumbnail Idea Generator")
+    
+    # Configuration
+    genai.configure(api_key="AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")  # Replace with your key
+    
+    # Thumbnail generation model
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # User inputs
+    col1, col2 = st.columns(2)
+    with col1:
+        video_title = st.text_input("Video Title", placeholder="5 Secrets to Viral Videos")
+        content_type = st.selectbox(
+            "Content Type",
+            ["Tutorial", "Review", "Vlog", "Gaming", "Tech", "Fashion", "Other"]
+        )
+    with col2:
+        target_audience = st.text_input("Target Audience", placeholder="Ages 18-35, Tech Enthusiasts")
+        style_preference = st.multiselect(
+            "Style Preferences",
+            ["Minimalist", "Bold Text", "Face Close-up", "Product Focus", "Dark Theme", "Bright Colors"]
+        )
+    
+    # Image upload option
+    uploaded_image = st.file_uploader("Upload Reference Image (Optional)", type=["jpg", "png", "jpeg"])
+    
+    if st.button("Generate Thumbnail Ideas"):
+        with st.spinner("Creating 3 professional thumbnail concepts..."):
+            try:
+                # Build the prompt
+                prompt = f"""
+                Act as a professional thumbnail designer with 10 years of experience creating click-worthy thumbnails.
+                
+                Generate 3 distinct YouTube thumbnail concepts for:
+                - Title: {video_title}
+                - Content Type: {content_type}
+                - Audience: {target_audience}
+                - Style: {', '.join(style_preference) if style_preference else 'No preference'}
+                
+                For each concept, provide:
+                1. Visual description (composition, colors, elements)
+                2. Text overlay recommendation
+                3. Emotional appeal strategy
+                4. Why it would get clicks
+                
+                Format your response with clear numbered sections for each concept.
+                """
+                
+                # Generate with or without image
+                if uploaded_image:
+                    img = Image.open(uploaded_image)
+                    img_bytes = io.BytesIO()
+                    img.save(img_bytes, format="PNG")
+                    
+                    response = model.generate_content(
+                        [prompt, {"mime_type": "image/png", "data": base64.b64encode(img_bytes.getvalue()).decode()}],
+                        generation_config={
+                            "temperature": 0.9,
+                            "max_output_tokens": 2000
+                        }
+                    )
+                else:
+                    text_model = genai.GenerativeModel('gemini-pro')
+                    response = text_model.generate_content(
+                        prompt,
+                        generation_config={
+                            "temperature": 0.9,
+                            "max_output_tokens": 2000
+                        }
+                    )
+                
+                # Display results
+                st.success("Here are 3 professional thumbnail concepts:")
+                st.markdown(response.text)
+                
+                # Download button
+                st.download_button(
+                    label="Download Ideas as TXT",
+                    data=response.text,
+                    file_name=f"thumbnail_ideas_{video_title[:20]}.txt",
+                    mime="text/plain"
+                )
+                
+            except Exception as e:
+                st.error(f"Error generating ideas: {str(e)}")
+
+
+
 # AI Recommendation Generator
 def generate_ai_recommendations(topic, analysis_data):
     prompt = f"""As a YouTube strategy expert, analyze this data and provide recommendations:
@@ -150,6 +242,7 @@ def generate_ai_recommendations(topic, analysis_data):
 def main():
     add_music()
     content_creator_chatbot()
+    thumbnail_idea_generator()
     st.sidebar.header("Settings")
     topic = st.sidebar.text_input("Enter YouTube Topic", "Example - Deep Learning")
     max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
