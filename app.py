@@ -182,7 +182,7 @@ Format with clear headings for each concept."""
                         [prompt, {"mime_type": "image/png", "data": base64.b64encode(img_bytes.getvalue()).decode()}]
                     )
                 else:
-                    text_model = genai.GenerativeModel('gemini-pro')
+                    text_model = genai.GenerativeModel('gemini-1.5-flash')
                     response = text_model.generate_content(prompt)
                 
                 st.success("✅ Generated 3 Professional Concepts")
