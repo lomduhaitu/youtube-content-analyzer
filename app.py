@@ -236,105 +236,105 @@ def generate_ai_recommendations(topic, analysis_data):
     except Exception as e:
         return f"AI recommendation error: {str(e)}"
 
-# Main App
 def main():
-    add_music()
-    content_creator_chatbot()
-
-
+    # Initialize page config (must be first Streamlit command)
     st.set_page_config(page_title="Content Creator Suite", layout="wide")
     
     # Initialize AI models
     model = init_gemini()
     
     # Create tabs
-    tab1, tab2 = st.tabs(["📹 Content Assistant", "🎨 Thumbnail Studio"])
+    tab1, tab2, tab3 = st.tabs(["🎵 Music Visualizer", "📹 Content Assistant", "🎨 Thumbnail Studio"])
     
     with tab1:
-        # Your existing content assistant code
-        content_creator_chatbot()  
+        add_music()  # Your music visualization function
     
     with tab2:
-        thumbnail_tab(model)
+        content_creator_chatbot()  # Your existing chatbot function
+        
+        # YouTube Analysis Section (moved inside Content Assistant tab)
+        st.header("YouTube Content Analysis")
+        with st.sidebar:
+            st.header("Settings")
+            topic = st.text_input("Enter YouTube Topic", "Example - Deep Learning")
+            max_results = st.slider("Number of Videos to Analyze", 20, 100, 50)
 
+        if st.button("🚀 Analyze"):
+            with st.spinner("Fetching and processing YouTube data..."):
+                try:
+                    # Get data
+                    video_df, comments_df = fetch_all_data(topic, max_results)
+                    
+                    # Preprocess data
+                    video_df['duration_mins'] = video_df['duration'].apply(seconds_to_minutes)
+                    video_df = video_df[video_df['duration_mins'] > 0]  # Filter out bad data
+
+                    video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
+                    video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
+                    
+                    st.write(f"Analyzing {len(comments_df)} comments from {len(comments_df['video_id'].unique())} videos")
+                    
+                    # Sentiment analysis
+                    sia = SentimentIntensityAnalyzer()
+                    comments_df['sentiment'] = comments_df['comment'].apply(
+                        lambda x: sia.polarity_scores(x)['compound']
+                    )
+                    
+                    # Keyword extraction
+                    kw_model = KeyBERT()
+                    keywords = kw_model.extract_keywords(' '.join(comments_df['comment']), 
+                                       keyphrase_ngram_range=(1, 2), top_n=20)
+                    
+                    # Prepare analysis data
+                    analysis_data = {
+                        'avg_duration': video_df.nlargest(10, 'engagement')['duration_mins'].median(),
+                        'best_hours': video_df.groupby('published_hour')['engagement'].mean().nlargest(3).index.tolist(),
+                        'top_keywords': [kw[0] for kw in keywords],
+                        'sentiment': comments_df['sentiment'].mean()
+                    }
+                    
+                    # Display results
+                    st.success("✅ Analysis Complete!")
+                    
+                    # Visualization Section
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.subheader("📈 Performance Insights")
+                        fig, ax = plt.subplots()
+                        sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
+                        plt.xlabel("Duration (minutes)")
+                        plt.title("Video Duration Distribution")
+                        st.pyplot(fig)
+                        
+                    with col2:
+                        fig, ax = plt.subplots()
+                        hour_engagement = video_df.groupby('published_hour')['engagement'].mean()
+                        sns.barplot(x=hour_engagement.index, y=hour_engagement.values, ax=ax)
+                        plt.title("Engagement by Posting Hour")
+                        plt.xlabel("Hour of Day")
+                        st.pyplot(fig)
+                    
+                    # AI Recommendations
+                    st.subheader("🧠 AI-Powered Strategy Recommendations")
+                    recommendations = generate_ai_recommendations(topic, analysis_data)
+                    st.markdown(recommendations)
+                    
+                    # Reference Videos
+                    st.subheader("🎬 Top Performing Reference Videos")
+                    top_videos = video_df.nlargest(5, 'engagement')[['title', 'channel', 'duration_mins', 'engagement']]
+                    
+                    # Display as clickable links
+                    for idx, row in top_videos.iterrows():
+                        st.markdown(f"▶️ [{row['title']}](https://youtube.com/watch?v={idx})")
+                        st.caption(f"Channel: {row['channel']} | Duration: {row['duration_mins']} mins | Engagement: {row['engagement']:.2f}")
+                    
+                except HttpError as e:
+                    st.error(f"YouTube API Error: {str(e)}")
+                except Exception as e:
+                    st.error(f"Analysis Failed: {str(e)}")
     
-    st.sidebar.header("Settings")
-    topic = st.sidebar.text_input("Enter YouTube Topic", "Example - Deep Learning")
-    max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
-
-    if st.sidebar.button("🚀 Analyze"):
-        with st.spinner("Fetching and processing YouTube data..."):
-            try:
-                # Get data
-                video_df, comments_df = fetch_all_data(topic, max_results)
-                
-                # Preprocess data
-                video_df['duration_mins'] = video_df['duration'].apply(seconds_to_minutes)
-                video_df = video_df[video_df['duration_mins'] > 0]  # Filter out bad data
-
-                video_df['engagement'] = video_df.apply(calculate_engagement, axis=1)
-                video_df['published_hour'] = pd.to_datetime(video_df['published_at']).dt.hour
-                
-                st.write(f"Analyzing {len(comments_df)} comments from {len(comments_df['video_id'].unique())} videos")
-                # Sentiment analysis
-                sia = SentimentIntensityAnalyzer()
-                comments_df['sentiment'] = comments_df['comment'].apply(
-                    lambda x: sia.polarity_scores(x)['compound']
-                )
-                
-                # Keyword extraction
-                kw_model = KeyBERT()
-                keywords = kw_model.extract_keywords(' '.join(comments_df['comment']), 
-                                   keyphrase_ngram_range=(1, 2), top_n=20)
-                
-                # Prepare analysis data
-                analysis_data = {
-                    'avg_duration': video_df.nlargest(10, 'engagement')['duration_mins'].median(),
-                    'best_hours': video_df.groupby('published_hour')['engagement'].mean().nlargest(3).index.tolist(),
-                    'top_keywords': [kw[0] for kw in keywords],
-                    'sentiment': comments_df['sentiment'].mean()
-                }
-                
-                # Display results
-                st.success("✅ Analysis Complete!")
-                
-                # Visualization Section
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.subheader("📈 Performance Insights")
-                    fig, ax = plt.subplots()
-                    sns.histplot(video_df['duration_mins'], bins=15, kde=True, ax=ax)
-                    plt.xlabel("Duration (seconds)")
-                    plt.title("Video Duration Distribution")
-                    st.pyplot(fig)
-                    
-                with col2:
-                    fig, ax = plt.subplots()
-                    hour_engagement = video_df.groupby('published_hour')['engagement'].mean()
-                    sns.barplot(x=hour_engagement.index, y=hour_engagement.values, ax=ax)
-                    plt.title("Engagement by Posting Hour")
-                    plt.xlabel("Hour of Day")
-                    st.pyplot(fig)
-                
-                # AI Recommendations
-                st.subheader("🧠 AI-Powered Strategy Recommendations")
-                recommendations = generate_ai_recommendations(topic, analysis_data)
-                st.markdown(recommendations)
-                
-                # Reference Videos
-                st.subheader("🎬 Top Performing Reference Videos")
-                top_videos = video_df.nlargest(5, 'engagement')[['title', 'channel', 'duration_mins', 'engagement', 'video_url']]
-                st.dataframe(top_videos)
-                
-                # Raw Data
-                with st.expander("View Raw Data"):
-                    st.write("Video Data:", video_df)
-                    st.write("Comments Data:", comments_df)
-                    
-            except HttpError as e:
-                st.error(f"YouTube API Error: {str(e)}")
-            except Exception as e:
-                st.error(f"Analysis Failed: {str(e)}")
+    with tab3:
+        thumbnail_tab(model)  # Your thumbnail generator function
 
 if __name__ == "__main__":
     main()
