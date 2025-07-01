@@ -73,7 +73,7 @@ def content_creator_chatbot():
     ]
     
     model = genai.GenerativeModel(
-        model_name="gemini-pro",
+        model_name="gemini-1.5-flash",
         generation_config=generation_config,
         safety_settings=safety_settings
     )
