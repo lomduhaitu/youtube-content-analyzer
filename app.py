@@ -57,7 +57,7 @@ def content_creator_chatbot():
         st.session_state.chat_history = []
     
     # Gemini API setup (FREE tier)
-    genai.configure(api_key="YOUR_FREE_GEMINI_API_KEY")  # Replace with your key
+    genai.configure(api_key="AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")  # Replace with your key
     
     # Configure the model to act as a content expert
     generation_config = {
