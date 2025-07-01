@@ -13,6 +13,8 @@ from youtube_data_handler import fetch_all_data
 from nltk.sentiment import SentimentIntensityAnalyzer
 from keybert import KeyBERT
 from collections import Counter
+import google.generativeai as genai
+from datetime import datetime
 
 # Preload NLTK Dat
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
@@ -45,6 +47,78 @@ def add_music():
         allowfullscreen></iframe>
         """, unsafe_allow_html=True)
 
+
+# --- Gemini Content Expert Chatbot ---
+def content_creator_chatbot():
+    st.sidebar.header("🤖 Content Creator Assistant")
+    
+    # Initialize session state for chat history
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+    
+    # Gemini API setup (FREE tier)
+    genai.configure(api_key="YOUR_FREE_GEMINI_API_KEY")  # Replace with your key
+    
+    # Configure the model to act as a content expert
+    generation_config = {
+        "temperature": 0.7,
+        "top_p": 1,
+        "top_k": 32,
+        "max_output_tokens": 2000,
+    }
+    
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    ]
+    
+    model = genai.GenerativeModel(
+        model_name="gemini-pro",
+        generation_config=generation_config,
+        safety_settings=safety_settings
+    )
+    
+    # System prompt to make it a content expert
+    expert_prompt = """You are ContentGPT, an expert digital content creator with 10+ years of experience. 
+    You specialize in YouTube content strategy, scripting, SEO optimization, and audience engagement. 
+    Provide concise, actionable advice. Always ask clarifying questions before giving recommendations."""
+    
+    # Chat UI
+    user_query = st.sidebar.text_area("Ask about content creation:", height=100)
+    
+    if st.sidebar.button("Get Expert Advice"):
+        with st.spinner("Consulting ContentGPT..."):
+            try:
+                # Include chat history for context
+                full_prompt = f"{expert_prompt}\n\nChat History:\n"
+                for msg in st.session_state.chat_history[-4:]:  # Last 4 messages
+                    full_prompt += f"{msg['role']}: {msg['content']}\n"
+                
+                full_prompt += f"User: {user_query}"
+                
+                response = model.generate_content(full_prompt)
+                
+                # Store conversation
+                st.session_state.chat_history.append({"role": "User", "content": user_query})
+                st.session_state.chat_history.append({"role": "ContentGPT", "content": response.text})
+                
+                # Display response
+                st.sidebar.success("ContentGPT says:")
+                st.sidebar.markdown(f"```\n{response.text}\n```")
+                
+                # Show full chat in main area
+                st.subheader("💬 Content Creation Chat History")
+                for msg in st.session_state.chat_history:
+                    if msg['role'] == "User":
+                        st.markdown(f"**You**: {msg['content']}")
+                    else:
+                        st.markdown(f"**ContentGPT**: {msg['content']}")
+                        st.divider()
+            
+            except Exception as e:
+                st.sidebar.error(f"Error: {str(e)}")
+
+
 # AI Recommendation Generator
 def generate_ai_recommendations(topic, analysis_data):
     prompt = f"""As a YouTube strategy expert, analyze this data and provide recommendations:
@@ -75,6 +149,7 @@ def generate_ai_recommendations(topic, analysis_data):
 # Main App
 def main():
     add_music()
+    content_creator_chatbot()
     st.sidebar.header("Settings")
     topic = st.sidebar.text_input("Enter YouTube Topic", "Example - Deep Learning")
     max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
