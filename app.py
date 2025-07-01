@@ -32,6 +32,19 @@ def calculate_engagement(row):
     views = row['views'] if row['views'] > 0 else 1
     return (2 * row['likes'] + row['comments']) / views
 
+# Add to your app.py
+def add_music():
+    st.sidebar.header("🎵 Background Music")
+    youtube_url = st.sidebar.text_input("Enter YouTube Music URL:")
+    
+    if youtube_url:
+        st.sidebar.write("Now playing:")
+        st.sidebar.markdown(f"""
+        <iframe width="100%" height="200" src="https://www.youtube.com/embed/{youtube_url.split('v=')[1].split('&')[0]}?autoplay=1&mute=0" 
+        frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allowfullscreen></iframe>
+        """, unsafe_allow_html=True)
+
 # AI Recommendation Generator
 def generate_ai_recommendations(topic, analysis_data):
     prompt = f"""As a YouTube strategy expert, analyze this data and provide recommendations:
@@ -61,6 +74,7 @@ def generate_ai_recommendations(topic, analysis_data):
 
 # Main App
 def main():
+    add_music()
     st.sidebar.header("Settings")
     topic = st.sidebar.text_input("Enter YouTube Topic", "Example - Deep Learning")
     max_results = st.sidebar.slider("Number of Videos to Analyze", 20, 100, 50)
