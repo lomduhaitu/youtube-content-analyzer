@@ -23,7 +23,7 @@ import base64
 nltk.download(['punkt', 'wordnet', 'stopwords', 'vader_lexicon'], quiet=True)
 
 # Configure APIs
-genai.configure(api_key= "AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")
+genai.configure(api_key= "AIzaSyDGU-r4X58li5a7Fz8a00NVx26ByworIJk")
 YOUTUBE_API_KEY = "AIzaSyCqFyrK_QRFl1llBZ5TABF8N1ImFBQgNj4"
 
 # Configure Streamlit
@@ -60,7 +60,7 @@ def content_creator_chatbot():
         st.session_state.chat_history = []
     
     # Gemini API setup (FREE tier)
-    genai.configure(api_key="AIzaSyCiWJwcl8u0tyOLYucXnA6JWlUwMMgvqbs")  # Replace with your key
+    genai.configure(api_key="AIzaSyDGU-r4X58li5a7Fz8a00NVx26ByworIJk")  # Replace with your key
     
     # Configure the model to act as a content expert
     generation_config = {
